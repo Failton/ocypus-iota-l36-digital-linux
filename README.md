@@ -1,10 +1,10 @@
-# Ocypus Iota A40 LCD Driver for Linux/Proxmox
+# Ocypus Iota L36 LCD Driver for Linux/Proxmox
 
-A Python-based driver for controlling the LCD display on Ocypus Iota A40 coolers in Linux environments, including Proxmox.
+A Python-based driver for controlling the LCD display on Ocypus Iota L36 liquid cooling systems in Linux environments, including Proxmox.
 
 ## ⚠️ Important Disclaimers
 
-- **Hardware Compatibility**: This project was created and tested specifically with the **Ocypus Iota A40** cooler only
+- **Hardware Compatibility**: This project was created and tested specifically with the **Ocypus Iota L36** liquid cooling system only
 - **Limited Testing**: The driver has only been tested on a specific hardware configuration
 - **Hardware Detection**: The device appears in `lsusb` as:
   ```
@@ -17,12 +17,12 @@ A Python-based driver for controlling the LCD display on Ocypus Iota A40 coolers
 
 ## Development Note
 
-This driver was developed by the community specifically for the Ocypus Iota A40 cooler. The hardware identification shows as a "USB Gaming Keyboard" from China Resource Semico Co., Ltd, which is the actual manufacturer of the LCD controller used in the Ocypus A40.
+This driver was developed by the community specifically for the Ocypus Iota L36 liquid cooling system. The hardware identification shows as a "USB Gaming Keyboard" from China Resource Semico Co., Ltd, which is the actual manufacturer of the LCD controller used in the Ocypus L36.
 
 ## Features
 
 - **Auto-detection**: Automatically detects and connects to working HID interfaces
-- **Temperature Display**: Shows real-time CPU temperature on the cooler's LCD
+- **Temperature Display**: Shows real-time CPU temperature on the liquid cooling system's LCD
 - **Dual Units**: Supports both Celsius (°C) and Fahrenheit (°F) temperature display
 - **Sensor Flexibility**: Works with any psutil-compatible temperature sensor
 - **Keep-alive**: Maintains display connection with periodic updates
@@ -42,8 +42,8 @@ This driver was developed by the community specifically for the Ocypus Iota A40 
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/moyunkz/ocypus-a40-digital-linux.git
-   cd ocypus-a40-digital-linux
+   git clone https://github.com/Failton/ocypus-iota-l36-digital-linux.git
+   cd ocypus-iota-l36-digital-linux
    ```
 
 2. **Install Python dependencies:**
@@ -97,6 +97,11 @@ sudo ./ocypus-control.py on -r 2.0
 sudo ./ocypus-control.py on -u f -s "k10temp" -r 1.5
 ```
 
+**Specify an interface:**
+```bash
+sudo ./ocypus-control.py on -i 2
+```
+
 ### Systemd Service Installation
 
 **Install as a systemd service:**
@@ -106,7 +111,7 @@ sudo ./ocypus-control.py install-service
 
 **Install with custom settings:**
 ```bash
-sudo ./ocypus-control.py install-service -u f -s "coretemp" -r 2.0 --name my-ocypus
+sudo ./ocypus-control.py install-service -u f -s "coretemp" -r 2.0 --name my-ocypus -i 2
 ```
 
 **Enable and start the service:**
@@ -125,7 +130,7 @@ systemctl status ocypus-lcd.service
 
 | Command | Description |
 |---------|-------------|
-| `list` | List all found Ocypus cooler devices |
+| `list` | List all found Ocypus liquid cooling system devices |
 | `on` | Turn on display and stream temperature |
 | `off` | Turn off (blank) the display |
 | `install-service` | Install systemd unit for background operation |
@@ -137,6 +142,7 @@ systemctl status ocypus-lcd.service
 | `--unit` | `-u` | `c` | Temperature unit: 'c' for Celsius, 'f' for Fahrenheit |
 | `--sensor` | `-s` | `k10temp` | Substring of psutil sensor to use |
 | `--rate` | `-r` | `1.0` | Update interval in seconds |
+| `--interface` | `-i` | `1` | Interface |
 
 ### Options for `install-service` command
 
@@ -146,6 +152,7 @@ systemctl status ocypus-lcd.service
 | `--sensor` | `k10temp` | Sensor substring for the service |
 | `--rate` | `1.0` | Update interval for the service |
 | `--name` | `ocypus-lcd` | Name for the systemd unit file |
+| `--interface` | `1` | interface |
 
 ## Technical Details
 
@@ -182,7 +189,7 @@ Sensor containing 'k10temp' not found
 
 ### Device Not Detected
 ```
-No Ocypus cooler found
+No Ocypus liquid cooling system found
 ```
 **Solution**:
 1. Check USB connection
@@ -199,6 +206,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Acknowledgments
 
-- Built for the Ocypus Iota A40 cooler community
+- Built for the Ocypus Iota L36 liquid cooling system community
 - Uses psutil for cross-platform temperature monitoring
 - Implements HID communication for direct hardware control
