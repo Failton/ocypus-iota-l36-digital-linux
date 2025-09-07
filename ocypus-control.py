@@ -15,6 +15,7 @@ FEATURES
 """
 
 import argparse
+from pathlib import Path
 import hid
 import os
 import signal
@@ -30,7 +31,7 @@ import psutil
 VID, PID = 0x1a2c, 0x434d
 REPORT_ID = 0x07
 REPORT_LENGTH = 65
-SLOT_TENS, SLOT_ONES = 5, 6
+SLOT_TENS, SLOT_ONES = 4, 5
 DEFAULT_SENSOR_SUBSTR = "k10temp"
 DEFAULT_REFRESH_RATE = 1.0  # seconds
 KEEPALIVE_INTERVAL = 2.0  # seconds
@@ -41,9 +42,9 @@ UNIT_FLAG_FAHRENHEIT = 0x01
 class OcypusController:
     """Manages the Ocypus Iota A40 LCD device."""
 
-    def __init__(self):
+    def __init__(self, interface_number: str = "1"):
         self.device: Optional[hid.device] = None
-        self.interface_number: Optional[int] = None
+        self.interface_number = int(interface_number) - 1
 
     def __enter__(self):
         """Context manager entry: opens the device."""
@@ -61,29 +62,26 @@ class OcypusController:
             print("No Ocypus cooler found.")
             return False
 
-        for device_info in devices:
-            interface_number = device_info.get('interface_number')
-            if interface_number is None:
-                continue
+        device_info = devices[self.interface_number]
+        interface_number = device_info.get('interface_number')
 
+        try:
+            device = hid.device()
+            device.open_path(device_info['path'])
+            # Test if we can send a report
+            test_report = [REPORT_ID] + [0] * (REPORT_LENGTH - 1)
+            device.send_feature_report(test_report)
+            
+            self.device = device
+            self.interface_number = interface_number
+            print(f"Connected to Ocypus cooler on interface {interface_number}")
+            return True
+        except Exception as e:
+            print(f"Failed to open interface {interface_number}: {e}")
             try:
-                device = hid.device()
-                device.open_path(device_info['path'])
-                # Test if we can send a report
-                test_report = [REPORT_ID] + [0] * (REPORT_LENGTH - 1)
-                device.send_feature_report(test_report)
-                
-                self.device = device
-                self.interface_number = interface_number
-                print(f"Connected to Ocypus cooler on interface {interface_number}")
-                return True
-            except Exception as e:
-                print(f"Failed to open interface {interface_number}: {e}")
-                try:
-                    device.close()
-                except:
-                    pass
-                continue
+                device.close()
+            except:
+                pass
 
         print("Error: No working Ocypus interface found.")
         return False
@@ -121,10 +119,12 @@ class OcypusController:
 
         try:
             report = [REPORT_ID] + [0] * (REPORT_LENGTH - 1)
+            report[1] = 0xff
+            report[2] = 0xff
             report[SLOT_TENS] = tens
             report[SLOT_ONES] = ones
             report[7] = unit_flag  # Temperature unit flag
-            
+
             self.device.send_feature_report(report)
             return True
         except Exception as e:
@@ -247,20 +247,24 @@ def select_and_read_sensor(sensor_substring: str = DEFAULT_SENSOR_SUBSTR) -> Opt
 def install_systemd_service(unit: str = 'c', 
                           sensor: str = DEFAULT_SENSOR_SUBSTR, 
                           rate: float = DEFAULT_REFRESH_RATE,
-                          service_name: str = "ocypus-lcd"):
+                          service_name: str = "ocypus-lcd",
+                          interface: str = '1'):
     """Creates and installs a systemd service unit."""
     script_path = os.path.abspath(__file__)
     
     service_content = f"""[Unit]
-Description=Ocypus Iota A40 LCD Temperature Display
+Description=Ocypus Iota L36 LCD Temperature Display
 After=multi-user.target
 
 [Service]
 Type=simple
 User=root
-ExecStart={sys.executable} {script_path} on -u {unit} -s "{sensor}" -r {rate}
+WorkingDirectory={Path(os.path.abspath(__file__)).parent}
+Environment=PATH={Path(sys.executable).parent}
+ExecStart={sys.executable} {script_path} on -u {unit} -s "{sensor}" -r {rate} -i {interface}
 Restart=always
 RestartSec=5
+SyslogIdentifier={service_name}
 
 [Install]
 WantedBy=multi-user.target
@@ -314,10 +318,14 @@ def main():
                           help=f'Substring of psutil sensor to use (default: {DEFAULT_SENSOR_SUBSTR})')
     on_parser.add_argument('-r', '--rate', type=float, default=DEFAULT_REFRESH_RATE,
                           help=f'Update interval in seconds (default: {DEFAULT_REFRESH_RATE})')
+    on_parser.add_argument('-i', '--interface', default='1',
+                          help='Interface number (default: 1)')
     
     # Off command
-    subparsers.add_parser('off', help='Turn off (blank) the display')
-    
+    off_parser = subparsers.add_parser('off', help='Turn off (blank) the display')
+    off_parser.add_argument('-i', '--interface', default='1',
+                            help='Interface number (default: 1)')
+
     # Install service command
     service_parser = subparsers.add_parser('install-service', 
                                           help='Install systemd unit for background operation')
@@ -327,6 +335,8 @@ def main():
                                help=f'Sensor substring for the service (default: {DEFAULT_SENSOR_SUBSTR})')
     service_parser.add_argument('-r', '--rate', type=float, default=DEFAULT_REFRESH_RATE,
                                help=f'Update interval for the service (default: {DEFAULT_REFRESH_RATE})')
+    service_parser.add_argument('-i', '--interface', default='1',
+                               help='Interface number (default: 1)')
     service_parser.add_argument('--name', default='ocypus-lcd',
                                help='Name for the systemd unit file (default: ocypus-lcd)')
     
@@ -357,12 +367,12 @@ def main():
             print("No Ocypus cooler devices found.")
     
     elif args.command == 'on':
-        with OcypusController() as controller:
+        with OcypusController(args.interface) as controller:
             if controller.device:
                 run_display_loop(controller, args.sensor, args.unit, args.rate)
     
     elif args.command == 'off':
-        with OcypusController() as controller:
+        with OcypusController(args.interface) as controller:
             if controller.device:
                 success = controller.blank_display()
                 if success:
@@ -371,7 +381,7 @@ def main():
                     print("Failed to turn off display.")
     
     elif args.command == 'install-service':
-        install_systemd_service(args.unit, args.sensor, args.rate, args.name)
+        install_systemd_service(args.unit, args.sensor, args.rate, args.name, args.interface)
 
 
 if __name__ == "__main__":
