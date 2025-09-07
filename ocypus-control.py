@@ -2,7 +2,7 @@
 """
 ocypus-control.py
 ---------------------------------
-Ocypus Iota A40 LCD driver (Linux / Proxmox)
+Ocypus Iota L36 LCD driver (Linux / Proxmox)
 
 An improved, object-oriented version for better structure and robustness.
 
@@ -40,7 +40,7 @@ UNIT_FLAG_FAHRENHEIT = 0x01
 
 
 class OcypusController:
-    """Manages the Ocypus Iota A40 LCD device."""
+    """Manages the Ocypus Iota L36 LCD device."""
 
     def __init__(self, interface_number: str = "1"):
         self.device: Optional[hid.device] = None
@@ -59,7 +59,7 @@ class OcypusController:
         """Opens the first working Ocypus device interface."""
         devices = hid.enumerate(VID, PID)
         if not devices:
-            print("No Ocypus cooler found.")
+            print("No Ocypus liquid cooling system found.")
             return False
 
         device_info = devices[self.interface_number]
@@ -74,7 +74,7 @@ class OcypusController:
             
             self.device = device
             self.interface_number = interface_number
-            print(f"Connected to Ocypus cooler on interface {interface_number}")
+            print(f"Connected to Ocypus liquid cooling system on interface {interface_number}")
             return True
         except Exception as e:
             print(f"Failed to open interface {interface_number}: {e}")
@@ -292,7 +292,7 @@ WantedBy=multi-user.target
 def main():
     """Main function with argument parsing."""
     parser = argparse.ArgumentParser(
-        description="Ocypus Iota A40 LCD driver for Linux/Proxmox",
+        description="Ocypus Iota L36 LCD driver for Linux/Proxmox",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=textwrap.dedent("""
         Examples:
@@ -308,7 +308,7 @@ def main():
     subparsers = parser.add_subparsers(dest='command', help='Available commands')
     
     # List command
-    subparsers.add_parser('list', help='List all found Ocypus cooler devices')
+    subparsers.add_parser('list', help='List all found Ocypus liquid cooling system devices')
     
     # On command
     on_parser = subparsers.add_parser('on', help='Turn on display and stream temperature')
@@ -358,13 +358,13 @@ def main():
         controller = OcypusController()
         devices = controller.list_devices()
         if devices:
-            print(f"Found {len(devices)} Ocypus cooler device(s):")
+            print(f"Found {len(devices)} Ocypus liquid cooling system device(s):")
             for i, device in enumerate(devices, 1):
                 interface = device.get('interface_number', 'Unknown')
                 path = device.get('path', 'Unknown')
                 print(f"  {i}. Interface {interface} (Path: {path.decode() if isinstance(path, bytes) else path})")
         else:
-            print("No Ocypus cooler devices found.")
+            print("No Ocypus liquid cooling system devices found.")
     
     elif args.command == 'on':
         with OcypusController(args.interface) as controller:
